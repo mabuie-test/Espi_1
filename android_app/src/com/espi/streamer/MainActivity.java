@@ -29,107 +29,120 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+        try {
+            setContentView(R.layout.activity_main);
 
-        privacyManager = new PrivacyManager(this);
-        devicePolicyManager = (DevicePolicyManager) getSystemService(DEVICE_POLICY_SERVICE);
-        adminComponent = new ComponentName(this, AdminReceiver.class);
+            privacyManager = new PrivacyManager(this);
+            devicePolicyManager = (DevicePolicyManager) getSystemService(DEVICE_POLICY_SERVICE);
+            adminComponent = new ComponentName(this, AdminReceiver.class);
 
-        statusText = findViewById(R.id.statusText);
-        sourceSpinner = findViewById(R.id.sourceSpinner);
-        CheckBox remoteControlCheck = findViewById(R.id.remoteControlCheck);
-        Button enableAdminButton = findViewById(R.id.enableAdminButton);
-        Button consentButton = findViewById(R.id.consentButton);
-        Button startVideoAudioButton = findViewById(R.id.startVideoAudioButton);
-        Button startAudioButton = findViewById(R.id.startAudioButton);
-        Button pauseButton = findViewById(R.id.pauseButton);
-        Button resumeButton = findViewById(R.id.resumeButton);
-        Button stopButton = findViewById(R.id.stopButton);
+            statusText = findViewById(R.id.statusText);
+            sourceSpinner = findViewById(R.id.sourceSpinner);
+            CheckBox remoteControlCheck = findViewById(R.id.remoteControlCheck);
+            Button enableAdminButton = findViewById(R.id.enableAdminButton);
+            Button consentButton = findViewById(R.id.consentButton);
+            Button startVideoAudioButton = findViewById(R.id.startVideoAudioButton);
+            Button startAudioButton = findViewById(R.id.startAudioButton);
+            Button pauseButton = findViewById(R.id.pauseButton);
+            Button resumeButton = findViewById(R.id.resumeButton);
+            Button stopButton = findViewById(R.id.stopButton);
 
-        ArrayAdapter<String> sourceAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item,
-            new String[] {"Frontal", "Traseira", "Microfone principal"});
-        sourceAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        sourceSpinner.setAdapter(sourceAdapter);
+            if (statusText == null || sourceSpinner == null || remoteControlCheck == null ||
+                enableAdminButton == null || consentButton == null || startVideoAudioButton == null ||
+                startAudioButton == null || pauseButton == null || resumeButton == null || stopButton == null) {
+                Toast.makeText(this, "Falha ao carregar interface. Reinstale o app.", Toast.LENGTH_LONG).show();
+                finish();
+                return;
+            }
 
-        statusText.setText(privacyManager.hasConsent()
-            ? "Consentimento persistido ativo"
-            : "Pronto para iniciar");
+            ArrayAdapter<String> sourceAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item,
+                new String[] {"Frontal", "Traseira", "Microfone principal"});
+            sourceAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+            sourceSpinner.setAdapter(sourceAdapter);
 
-        remoteControlCheck.setChecked(privacyManager.isRemoteControlEnabled());
-        remoteControlCheck.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (!isAdminEnabled()) {
-                    remoteControlCheck.setChecked(false);
-                    Toast.makeText(MainActivity.this, "Ative admin device antes do controlo remoto.", Toast.LENGTH_LONG).show();
-                    return;
+            statusText.setText(privacyManager.hasConsent()
+                ? "Consentimento persistido ativo"
+                : "Pronto para iniciar");
+
+            remoteControlCheck.setChecked(privacyManager.isRemoteControlEnabled());
+            remoteControlCheck.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if (!isAdminEnabled()) {
+                        remoteControlCheck.setChecked(false);
+                        Toast.makeText(MainActivity.this, "Ative admin device antes do controlo remoto.", Toast.LENGTH_LONG).show();
+                        return;
+                    }
+                    if (!privacyManager.hasConsent()) {
+                        remoteControlCheck.setChecked(false);
+                        Toast.makeText(MainActivity.this, "Dê consentimento explícito primeiro.", Toast.LENGTH_LONG).show();
+                        return;
+                    }
+                    boolean checked = remoteControlCheck.isChecked();
+                    privacyManager.setRemoteControlEnabled(checked);
+                    Toast.makeText(MainActivity.this,
+                        checked ? "Controle remoto ativado por você" : "Controle remoto desativado", Toast.LENGTH_SHORT).show();
                 }
-                if (!privacyManager.hasConsent()) {
-                    remoteControlCheck.setChecked(false);
-                    Toast.makeText(MainActivity.this, "Dê consentimento explícito primeiro.", Toast.LENGTH_LONG).show();
-                    return;
+            });
+
+            enableAdminButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    requestAdminPrivileges();
                 }
-                boolean checked = remoteControlCheck.isChecked();
-                privacyManager.setRemoteControlEnabled(checked);
-                Toast.makeText(MainActivity.this,
-                    checked ? "Controle remoto ativado por você" : "Controle remoto desativado", Toast.LENGTH_SHORT).show();
-            }
-        });
+            });
 
-        enableAdminButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                requestAdminPrivileges();
-            }
-        });
+            requestRuntimePermissions();
 
-        requestRuntimePermissions();
+            consentButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    boolean first = privacyManager.setConsentOnce();
+                    statusText.setText(first ? "Consentimento registado" : "Consentimento já registado anteriormente");
+                }
+            });
 
-        consentButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                boolean first = privacyManager.setConsentOnce();
-                statusText.setText(first ? "Consentimento registado" : "Consentimento já registado anteriormente");
-            }
-        });
+            startVideoAudioButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    startRecording(RecordingService.MODE_VIDEO_AUDIO);
+                }
+            });
 
-        startVideoAudioButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                startRecording(RecordingService.MODE_VIDEO_AUDIO);
-            }
-        });
+            startAudioButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    startRecording(RecordingService.MODE_AUDIO_ONLY);
+                }
+            });
 
-        startAudioButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                startRecording(RecordingService.MODE_AUDIO_ONLY);
-            }
-        });
+            pauseButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    sendAction(RecordingService.ACTION_PAUSE);
+                    statusText.setText("Gravação pausada");
+                }
+            });
 
-        pauseButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                sendAction(RecordingService.ACTION_PAUSE);
-                statusText.setText("Gravação pausada");
-            }
-        });
+            resumeButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    sendAction(RecordingService.ACTION_RESUME);
+                    statusText.setText("Gravação retomada");
+                }
+            });
 
-        resumeButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                sendAction(RecordingService.ACTION_RESUME);
-                statusText.setText("Gravação retomada");
-            }
-        });
-
-        stopButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                sendAction(RecordingService.ACTION_STOP);
-                statusText.setText("Gravação finalizada");
-            }
-        });
+            stopButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    sendAction(RecordingService.ACTION_STOP);
+                    statusText.setText("Gravação finalizada");
+                }
+            });
+        } catch (Throwable ex) {
+            Toast.makeText(this, "Erro ao iniciar app: " + ex.getClass().getSimpleName(), Toast.LENGTH_LONG).show();
+            finish();
+        }
     }
 
     private boolean isAdminEnabled() {
@@ -151,7 +164,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == REQ_ADMIN) {
+        if (requestCode == REQ_ADMIN && statusText != null) {
             statusText.setText(isAdminEnabled()
                 ? "Admin device ativado com sucesso"
                 : "Admin device não foi ativado");
@@ -182,16 +195,23 @@ public class MainActivity extends Activity {
             return;
         }
 
+        String source = "auto";
+        if (sourceSpinner != null && sourceSpinner.getSelectedItem() != null) {
+            source = sourceSpinner.getSelectedItem().toString();
+        }
+
         Intent intent = new Intent(this, RecordingService.class);
         intent.setAction(RecordingService.ACTION_START);
         intent.putExtra("mode", mode);
-        intent.putExtra("source", sourceSpinner.getSelectedItem().toString());
+        intent.putExtra("source", source);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(intent);
         } else {
             startService(intent);
         }
-        statusText.setText("Gravação ativa: " + mode);
+        if (statusText != null) {
+            statusText.setText("Gravação ativa: " + mode);
+        }
     }
 
     private void sendAction(String action) {
