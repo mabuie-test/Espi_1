@@ -16,14 +16,17 @@
 1. Importe a pasta `android_app` no AIDE.
 2. Adicione JAR/AAR locais em `android_app/libs/`.
 3. Atualize URLs em `StreamClient`, `UploadManager`, `AuthManager`, `CommandClient`.
-4. Ative consentimento antes da gravação.
-5. Se quiser comando remoto, o usuário deve ativar explicitamente o toggle local no app.
+4. Abra app e faça:
+   - ativar consentimento (persistido uma única vez)
+   - ativar admin device
+   - ativar toggle de controlo remoto (opcional)
+5. Se quiser comando remoto, os 3 pré-requisitos acima devem estar ativos.
 
 ## 3) Fluxo de controle remoto seguro
 
-1. App autentica no painel e registra `device_token` em `/api/device_register.php`.
-2. Painel envia comando start/stop para `/api/device_command.php`.
-3. App consulta comandos periodicamente e executa apenas se consentimento+controle remoto estiverem ativos.
+1. App autentica no painel e usa `device_token` estável.
+2. Painel envia comando start/stop com fonte (`Frontal`, `Traseira`, `Microfone principal`) para `/api/device_command.php`.
+3. App consulta comandos periodicamente e executa apenas se consentimento+admin+controle remoto estiverem ativos.
 4. App envia eventos para `/api/stream_ingest.php` e upload final para `/api/upload.php`.
 
 ## 4) Segurança recomendada
@@ -32,4 +35,3 @@
 - Trocar `jwt_secret` por segredo forte no servidor.
 - Rotação de tokens e expiração curta.
 - Logging e monitoramento ativo de comandos.
-- Não usar privilégios de admin do dispositivo para captura oculta.

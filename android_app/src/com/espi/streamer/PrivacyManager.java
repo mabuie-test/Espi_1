@@ -14,8 +14,12 @@ public class PrivacyManager {
         prefs = context.getSharedPreferences(PREF, Context.MODE_PRIVATE);
     }
 
-    public void setConsent(boolean value) {
-        prefs.edit().putBoolean(CONSENT, value).apply();
+    public boolean setConsentOnce() {
+        if (hasConsent()) {
+            return false;
+        }
+        prefs.edit().putBoolean(CONSENT, true).apply();
+        return true;
     }
 
     public boolean hasConsent() {

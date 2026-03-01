@@ -44,6 +44,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $mode = (string)($body['mode'] ?? 'audio_only');
     $source = (string)($body['source'] ?? 'auto');
 
+    $allowedActions = ['start', 'stop'];
+    $allowedModes = ['video_audio', 'audio_only'];
+    $allowedSources = ['Frontal', 'Traseira', 'Microfone principal', 'auto'];
+    if (!in_array($action, $allowedActions, true)) {
+        json_response(['error' => 'invalid_action'], 422);
+    }
+    if (!in_array($mode, $allowedModes, true)) {
+        json_response(['error' => 'invalid_mode'], 422);
+    }
+    if (!in_array($source, $allowedSources, true)) {
+        json_response(['error' => 'invalid_source'], 422);
+    }
+
     $check = db()->prepare('SELECT id FROM devices WHERE id = ? AND user_id = ? LIMIT 1');
     $check->execute([$deviceId, $userId]);
     if (!$check->fetch()) {

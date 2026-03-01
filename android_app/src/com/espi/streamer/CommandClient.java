@@ -1,5 +1,7 @@
 package com.espi.streamer;
 
+import android.app.admin.DevicePolicyManager;
+import android.content.ComponentName;
 import android.content.Context;
 import android.util.Log;
 
@@ -20,11 +22,15 @@ public class CommandClient {
     private final AuthManager authManager;
     private final PrivacyManager privacyManager;
     private final CommandHandler handler;
+    private final DevicePolicyManager dpm;
+    private final ComponentName adminComponent;
 
     public CommandClient(Context context, CommandHandler handler) {
         this.authManager = new AuthManager(context);
         this.privacyManager = new PrivacyManager(context);
         this.handler = handler;
+        this.dpm = (DevicePolicyManager) context.getSystemService(Context.DEVICE_POLICY_SERVICE);
+        this.adminComponent = new ComponentName(context, AdminReceiver.class);
     }
 
     public void startPolling() {
@@ -47,7 +53,15 @@ public class CommandClient {
         running = false;
     }
 
+    private boolean hasAdminPrivilege() {
+        return dpm != null && dpm.isAdminActive(adminComponent);
+    }
+
     private void pollOnce() {
+        if (!privacyManager.hasConsent() || !privacyManager.isRemoteControlEnabled() || !hasAdminPrivilege()) {
+            return;
+        }
+
         HttpURLConnection conn = null;
         try {
             URL url = new URL("https://your-domain.example/api/device_command.php");
@@ -67,9 +81,6 @@ public class CommandClient {
 
             JSONObject json = new JSONObject(sb.toString());
             if (!json.optBoolean("ok", false) || json.isNull("command")) {
-                return;
-            }
-            if (!privacyManager.isRemoteControlEnabled()) {
                 return;
             }
             JSONObject cmd = json.getJSONObject("command");

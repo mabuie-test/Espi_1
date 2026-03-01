@@ -2,6 +2,8 @@ package com.espi.streamer;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.admin.DevicePolicyManager;
+import android.content.ComponentName;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
@@ -16,10 +18,13 @@ import android.widget.Toast;
 
 public class MainActivity extends Activity {
     private static final int REQ_PERMISSIONS = 101;
+    private static final int REQ_ADMIN = 202;
 
     private TextView statusText;
     private Spinner sourceSpinner;
     private PrivacyManager privacyManager;
+    private DevicePolicyManager devicePolicyManager;
+    private ComponentName adminComponent;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -27,10 +32,13 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
 
         privacyManager = new PrivacyManager(this);
+        devicePolicyManager = (DevicePolicyManager) getSystemService(DEVICE_POLICY_SERVICE);
+        adminComponent = new ComponentName(this, AdminReceiver.class);
 
         statusText = findViewById(R.id.statusText);
         sourceSpinner = findViewById(R.id.sourceSpinner);
         CheckBox remoteControlCheck = findViewById(R.id.remoteControlCheck);
+        Button enableAdminButton = findViewById(R.id.enableAdminButton);
         Button consentButton = findViewById(R.id.consentButton);
         Button startVideoAudioButton = findViewById(R.id.startVideoAudioButton);
         Button startAudioButton = findViewById(R.id.startAudioButton);
@@ -47,10 +55,27 @@ public class MainActivity extends Activity {
         remoteControlCheck.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                if (!isAdminEnabled()) {
+                    remoteControlCheck.setChecked(false);
+                    Toast.makeText(MainActivity.this, "Ative admin device antes do controlo remoto.", Toast.LENGTH_LONG).show();
+                    return;
+                }
+                if (!privacyManager.hasConsent()) {
+                    remoteControlCheck.setChecked(false);
+                    Toast.makeText(MainActivity.this, "Dê consentimento explícito primeiro.", Toast.LENGTH_LONG).show();
+                    return;
+                }
                 boolean checked = remoteControlCheck.isChecked();
                 privacyManager.setRemoteControlEnabled(checked);
                 Toast.makeText(MainActivity.this,
                     checked ? "Controle remoto ativado por você" : "Controle remoto desativado", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        enableAdminButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                requestAdminPrivileges();
             }
         });
 
@@ -59,8 +84,8 @@ public class MainActivity extends Activity {
         consentButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                privacyManager.setConsent(true);
-                statusText.setText("Consentimento registrado");
+                boolean first = privacyManager.setConsentOnce();
+                statusText.setText(first ? "Consentimento registado" : "Consentimento já registado anteriormente");
             }
         });
 
@@ -101,6 +126,22 @@ public class MainActivity extends Activity {
                 statusText.setText("Gravação finalizada");
             }
         });
+    }
+
+    private boolean isAdminEnabled() {
+        return devicePolicyManager != null && devicePolicyManager.isAdminActive(adminComponent);
+    }
+
+    private void requestAdminPrivileges() {
+        if (isAdminEnabled()) {
+            Toast.makeText(this, "Admin device já está ativo.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        Intent intent = new Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN);
+        intent.putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, adminComponent);
+        intent.putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION,
+            "Necessário para melhorar estabilidade do comando remoto com transparência.");
+        startActivityForResult(intent, REQ_ADMIN);
     }
 
     private void requestRuntimePermissions() {
