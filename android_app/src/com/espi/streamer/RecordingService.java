@@ -184,7 +184,10 @@ public class RecordingService extends Service {
     }
 
     private Notification buildNotification(String text) {
-        Intent openIntent = new Intent(this, MainActivity.class);
+        Intent openIntent = getPackageManager().getLaunchIntentForPackage(getPackageName());
+        if (openIntent == null) {
+            openIntent = new Intent();
+        }
         PendingIntent pendingIntent = PendingIntent.getActivity(
             this, 0, openIntent,
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
