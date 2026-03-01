@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
+    android:layout_height="match_parent">
+
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
     android:orientation="vertical"
     android:padding="16dp">
 
@@ -9,8 +13,24 @@
         android:id="@+id/statusText"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Parado"
+        android:text="Pronto para iniciar"
         android:textSize="18sp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Controle remoto só funciona se ativado pelo próprio usuário." />
+
+    <CheckBox
+        android:id="@+id/remoteControlCheck"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Permitir iniciar/parar remotamente (com consentimento)"/>
+
+    <Spinner
+        android:id="@+id/sourceSpinner"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
 
     <Button
         android:id="@+id/consentButton"
@@ -48,3 +68,4 @@
         android:layout_height="wrap_content"
         android:text="Parar e Enviar" />
 </LinearLayout>
+</ScrollView>

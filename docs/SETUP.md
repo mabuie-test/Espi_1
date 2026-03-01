@@ -7,12 +7,7 @@
    mysql -u root -p < web_panel/sql/schema.sql
    ```
 2. Ajuste credenciais em `web_panel/src/config.php`.
-3. Crie usuário inicial (exemplo):
-   ```php
-   <?php
-   echo password_hash('SUA_SENHA_FORTE', PASSWORD_DEFAULT), PHP_EOL;
-   ```
-   Insira no MySQL em `users`.
+3. Crie usuário inicial com hash seguro (`password_hash`).
 4. Publique `web_panel/public` em servidor com HTTPS obrigatório.
 5. Garanta permissão de escrita em `web_panel/storage/uploads`.
 
@@ -20,24 +15,21 @@
 
 1. Importe a pasta `android_app` no AIDE.
 2. Adicione JAR/AAR locais em `android_app/libs/`.
-3. Atualize URLs em:
-   - `StreamClient.java`
-   - `UploadManager.java`
-   - `AuthManager.java`
-4. Instale em Android 8.0+ e conceda permissões.
-5. Usuário deve tocar em **Dar Consentimento** antes de iniciar captura.
+3. Atualize URLs em `StreamClient`, `UploadManager`, `AuthManager`, `CommandClient`.
+4. Ative consentimento antes da gravação.
+5. Se quiser comando remoto, o usuário deve ativar explicitamente o toggle local no app.
 
-## 3) Segurança recomendada
+## 3) Fluxo de controle remoto seguro
+
+1. App autentica no painel e registra `device_token` em `/api/device_register.php`.
+2. Painel envia comando start/stop para `/api/device_command.php`.
+3. App consulta comandos periodicamente e executa apenas se consentimento+controle remoto estiverem ativos.
+4. App envia eventos para `/api/stream_ingest.php` e upload final para `/api/upload.php`.
+
+## 4) Segurança recomendada
 
 - HTTPS em todos endpoints.
 - Trocar `jwt_secret` por segredo forte no servidor.
 - Rotação de tokens e expiração curta.
-- Logs de eventos e monitoramento de uploads.
-
-## 4) Observação operacional
-
-- O projeto é um esqueleto profissional para consentimento explícito, notificação persistente e envio robusto (retry/resume).
-- Para produção em larga escala, recomendam-se:
-  - Worker queue para processamento de mídia.
-  - WebSocket dedicado (ex.: Ratchet/Swoole ou gateway externo).
-  - Transcodificação com FFmpeg em backend isolado.
+- Logging e monitoramento ativo de comandos.
+- Não usar privilégios de admin do dispositivo para captura oculta.

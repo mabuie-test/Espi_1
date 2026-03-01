@@ -9,10 +9,12 @@ import java.io.BufferedReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.UUID;
 
 public class AuthManager {
     private static final String PREFS = "auth";
     private static final String KEY_TOKEN = "jwt";
+    private static final String KEY_DEVICE_TOKEN = "device_token";
 
     private final SharedPreferences prefs;
 
@@ -22,6 +24,15 @@ public class AuthManager {
 
     public String getToken() {
         return prefs.getString(KEY_TOKEN, "");
+    }
+
+    public String getDeviceToken() {
+        String token = prefs.getString(KEY_DEVICE_TOKEN, "");
+        if (token.isEmpty()) {
+            token = UUID.randomUUID().toString();
+            prefs.edit().putString(KEY_DEVICE_TOKEN, token).apply();
+        }
+        return token;
     }
 
     public boolean login(String baseUrl, String username, String password) {

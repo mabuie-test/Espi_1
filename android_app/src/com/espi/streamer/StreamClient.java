@@ -12,18 +12,16 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 public class StreamClient {
-    private final Context context;
     private WebSocketClient ws;
     private final AuthManager authManager;
     private final MemoryManager memoryManager;
 
     public StreamClient(Context context) {
-        this.context = context;
         this.authManager = new AuthManager(context);
         this.memoryManager = new MemoryManager();
     }
 
-    public void startStreaming(String mode, String sessionName) {
+    public void startStreaming(String mode, String sessionName, String source, boolean remotelyTriggered) {
         try {
             URI uri = new URI("wss://your-domain.example/ws/stream.php");
             ws = new WebSocketClient(uri) {
@@ -56,6 +54,8 @@ public class StreamClient {
             start.put("event", "start");
             start.put("mode", mode);
             start.put("session", sessionName);
+            start.put("source", source);
+            start.put("remote", remotelyTriggered);
             sendJson(start);
         } catch (Exception ex) {
             Log.e("StreamClient", "Falha ao iniciar streaming", ex);
@@ -67,6 +67,7 @@ public class StreamClient {
             JSONObject json = new JSONObject();
             json.put("event", event);
             json.put("free_mem_mb", memoryManager.getFreeMemoryMb());
+            json.put("cpu_hint", memoryManager.cpuHint());
             sendJson(json);
         } catch (Exception ignored) {
         }

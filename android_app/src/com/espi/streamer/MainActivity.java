@@ -7,7 +7,10 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.CheckBox;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -15,14 +18,19 @@ public class MainActivity extends Activity {
     private static final int REQ_PERMISSIONS = 101;
 
     private TextView statusText;
-    private boolean userConsent = false;
+    private Spinner sourceSpinner;
+    private PrivacyManager privacyManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        privacyManager = new PrivacyManager(this);
+
         statusText = findViewById(R.id.statusText);
+        sourceSpinner = findViewById(R.id.sourceSpinner);
+        CheckBox remoteControlCheck = findViewById(R.id.remoteControlCheck);
         Button consentButton = findViewById(R.id.consentButton);
         Button startVideoAudioButton = findViewById(R.id.startVideoAudioButton);
         Button startAudioButton = findViewById(R.id.startAudioButton);
@@ -30,12 +38,28 @@ public class MainActivity extends Activity {
         Button resumeButton = findViewById(R.id.resumeButton);
         Button stopButton = findViewById(R.id.stopButton);
 
+        ArrayAdapter<String> sourceAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item,
+            new String[] {"Frontal", "Traseira", "Microfone principal"});
+        sourceAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        sourceSpinner.setAdapter(sourceAdapter);
+
+        remoteControlCheck.setChecked(privacyManager.isRemoteControlEnabled());
+        remoteControlCheck.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                boolean checked = remoteControlCheck.isChecked();
+                privacyManager.setRemoteControlEnabled(checked);
+                Toast.makeText(MainActivity.this,
+                    checked ? "Controle remoto ativado por você" : "Controle remoto desativado", Toast.LENGTH_SHORT).show();
+            }
+        });
+
         requestRuntimePermissions();
 
         consentButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                userConsent = true;
+                privacyManager.setConsent(true);
                 statusText.setText("Consentimento registrado");
             }
         });
@@ -92,7 +116,7 @@ public class MainActivity extends Activity {
     }
 
     private void startRecording(String mode) {
-        if (!userConsent) {
+        if (!privacyManager.hasConsent()) {
             Toast.makeText(this, "É obrigatório consentimento explícito.", Toast.LENGTH_LONG).show();
             return;
         }
@@ -106,6 +130,7 @@ public class MainActivity extends Activity {
         Intent intent = new Intent(this, RecordingService.class);
         intent.setAction(RecordingService.ACTION_START);
         intent.putExtra("mode", mode);
+        intent.putExtra("source", sourceSpinner.getSelectedItem().toString());
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(intent);
         } else {

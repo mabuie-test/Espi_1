@@ -10,4 +10,15 @@ public class MemoryManager {
     public boolean shouldThrottle(long thresholdMb) {
         return getFreeMemoryMb() < thresholdMb;
     }
+
+    public String cpuHint() {
+        long free = getFreeMemoryMb();
+        if (free < 64) {
+            return "high";
+        }
+        if (free < 128) {
+            return "medium";
+        }
+        return "low";
+    }
 }

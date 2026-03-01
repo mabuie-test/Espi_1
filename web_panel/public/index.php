@@ -4,12 +4,14 @@ require __DIR__ . '/../src/bootstrap.php';
 $active = 0;
 $uploads = 0;
 $recent = [];
+$devices = [];
 $dbWarning = null;
 
 try {
-    $active = db()->query("SELECT COUNT(*) total FROM media_sessions WHERE stream_status IN ('connected','resumed')")->fetch()['total'] ?? 0;
+    $active = db()->query("SELECT COUNT(*) total FROM media_sessions WHERE stream_status IN ('connected','resumed','heartbeat')")->fetch()['total'] ?? 0;
     $uploads = db()->query('SELECT COALESCE(SUM(bytes_received),0) AS total_bytes FROM media_sessions')->fetch()['total_bytes'] ?? 0;
-    $recent = db()->query('SELECT file_name, media_type, stream_status, bytes_received, created_at FROM media_sessions ORDER BY id DESC LIMIT 20')->fetchAll();
+    $recent = db()->query('SELECT ms.id, ms.file_name, ms.media_type, ms.source_name, ms.stream_status, ms.bytes_received, ms.created_at, d.device_name FROM media_sessions ms LEFT JOIN devices d ON d.id = ms.device_id ORDER BY ms.id DESC LIMIT 20')->fetchAll();
+    $devices = db()->query('SELECT id, device_name, online_status, last_seen FROM devices ORDER BY id DESC')->fetchAll();
 } catch (Throwable $e) {
     $dbWarning = 'Banco indisponível para o preview local.';
 }
@@ -24,23 +26,71 @@ try {
 </head>
 <body>
   <main>
-    <h1>Dashboard de Streaming</h1>
+    <header class="hero">
+      <h1>🎥 ESPI Control Center</h1>
+      <p>Acompanhe transmissões ao vivo, escolha a fonte e envie comandos para dispositivos online com consentimento do utilizador.</p>
+    </header>
+
     <?php if ($dbWarning): ?><p class="warn"><?= htmlspecialchars($dbWarning) ?></p><?php endif; ?>
+
     <section class="cards">
-      <article><h2>Câmeras ativas</h2><p><?= (int)$active ?></p></article>
+      <article><h2>Dispositivos/sessões ativas</h2><p><?= (int)$active ?></p></article>
       <article><h2>Bytes recebidos</h2><p><?= number_format((int)$uploads, 0, ',', '.') ?></p></article>
+      <article><h2>Dispositivos registados</h2><p><?= count($devices) ?></p></article>
+    </section>
+
+    <section class="panel-grid">
+      <div class="panel">
+        <h2>Controle de transmissão</h2>
+        <form id="cmdForm">
+          <label>Dispositivo</label>
+          <select id="device_id" required>
+            <option value="">Selecione</option>
+            <?php foreach ($devices as $d): ?>
+              <option value="<?= (int)$d['id'] ?>"><?= htmlspecialchars($d['device_name']) ?> <?= (int)$d['online_status'] ? '🟢' : '⚪' ?></option>
+            <?php endforeach; ?>
+          </select>
+
+          <label>Ação</label>
+          <select id="action"><option value="start">Iniciar</option><option value="stop">Parar</option></select>
+
+          <label>Modo</label>
+          <select id="mode"><option value="video_audio">Vídeo + Áudio</option><option value="audio_only">Apenas Áudio</option></select>
+
+          <label>Fonte</label>
+          <select id="source"><option>Frontal</option><option>Traseira</option><option>Microfone principal</option></select>
+
+          <button type="submit">Enviar comando</button>
+        </form>
+        <p id="cmdResult"></p>
+      </div>
+
+      <div class="panel">
+        <h2>Monitor ao vivo (sessão selecionável)</h2>
+        <select id="sessionPicker">
+          <option value="">Selecione uma sessão</option>
+          <?php foreach ($recent as $row): ?>
+            <option value="<?= htmlspecialchars($row['file_name']) ?>"><?= htmlspecialchars(($row['device_name'] ?? 'Sem dispositivo') . ' - ' . $row['file_name']) ?></option>
+          <?php endforeach; ?>
+        </select>
+        <div id="livePlayer" class="live-player">
+          <p>Escolha uma sessão para acompanhar a transmissão/arquivo.</p>
+        </div>
+      </div>
     </section>
 
     <section>
       <h2>Sessões recentes</h2>
       <table>
-        <thead><tr><th>Arquivo</th><th>Tipo</th><th>Status</th><th>Bytes</th><th>Data</th></tr></thead>
+        <thead><tr><th>Dispositivo</th><th>Arquivo</th><th>Tipo</th><th>Fonte</th><th>Status</th><th>Bytes</th><th>Data</th></tr></thead>
         <tbody>
           <?php foreach ($recent as $row): ?>
           <tr>
+            <td><?= htmlspecialchars((string)($row['device_name'] ?? '-')) ?></td>
             <td><?= htmlspecialchars($row['file_name']) ?></td>
             <td><?= htmlspecialchars($row['media_type']) ?></td>
-            <td><?= htmlspecialchars($row['stream_status']) ?></td>
+            <td><?= htmlspecialchars((string)($row['source_name'] ?? 'auto')) ?></td>
+            <td><span class="badge"><?= htmlspecialchars($row['stream_status']) ?></span></td>
             <td><?= (int)$row['bytes_received'] ?></td>
             <td><?= htmlspecialchars($row['created_at']) ?></td>
           </tr>
@@ -48,26 +98,7 @@ try {
         </tbody>
       </table>
     </section>
-
-    <section>
-      <h2>Arquivos gravados</h2>
-      <ul>
-        <?php
-          $files = glob(__DIR__ . '/../storage/uploads/*.{mp4,m4a,part}', GLOB_BRACE) ?: [];
-          foreach ($files as $file):
-              $name = basename($file);
-        ?>
-          <li>
-            <?= htmlspecialchars($name) ?>
-            <?php if (preg_match('/\.mp4$/', $name)): ?>
-                <video controls width="360" src="/media.php?f=<?= urlencode($name) ?>"></video>
-            <?php else: ?>
-                <audio controls src="/media.php?f=<?= urlencode($name) ?>"></audio>
-            <?php endif; ?>
-          </li>
-        <?php endforeach; ?>
-      </ul>
-    </section>
   </main>
+  <script src="/assets/app.js"></script>
 </body>
 </html>

@@ -8,7 +8,9 @@ import android.app.Service;
 import android.content.Intent;
 import android.media.MediaRecorder;
 import android.os.Build;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import android.util.Log;
 
 import java.io.File;
@@ -31,13 +33,40 @@ public class RecordingService extends Service {
     private String currentMode;
     private StreamClient streamClient;
     private UploadManager uploadManager;
+    private CommandClient commandClient;
+    private final Handler statsHandler = new Handler(Looper.getMainLooper());
+    private final Runnable statsRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (recorder != null) {
+                streamClient.sendControlEvent("heartbeat");
+                statsHandler.postDelayed(this, 5000);
+            }
+        }
+    };
 
     @Override
     public void onCreate() {
         super.onCreate();
         streamClient = new StreamClient(getApplicationContext());
         uploadManager = new UploadManager(getApplicationContext());
+        commandClient = new CommandClient(getApplicationContext(), new CommandClient.CommandHandler() {
+            @Override
+            public void onStartRequested(String mode, String source) {
+                if (recorder == null) {
+                    startRecorder(mode, source, true);
+                }
+            }
+
+            @Override
+            public void onStopRequested() {
+                if (recorder != null) {
+                    stopRecorderAndUpload();
+                }
+            }
+        });
         createNotificationChannel();
+        commandClient.startPolling();
     }
 
     @Override
@@ -52,8 +81,11 @@ public class RecordingService extends Service {
             if (mode == null) {
                 mode = MODE_AUDIO_ONLY;
             }
-            startForeground(NOTIFICATION_ID, buildNotification("Gravação iniciada"));
-            startRecorder(mode);
+            String source = intent.getStringExtra("source");
+            if (source == null) {
+                source = "auto";
+            }
+            startRecorder(mode, source, false);
         } else if (ACTION_PAUSE.equals(action)) {
             pauseRecorder();
         } else if (ACTION_RESUME.equals(action)) {
@@ -64,7 +96,7 @@ public class RecordingService extends Service {
         return START_STICKY;
     }
 
-    private void startRecorder(String mode) {
+    private void startRecorder(String mode, String source, boolean remotelyTriggered) {
         stopRecorderIfRunning();
         currentMode = mode;
         recorder = new MediaRecorder();
@@ -77,7 +109,7 @@ public class RecordingService extends Service {
             recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
             recorder.setVideoFrameRate(24);
             recorder.setVideoSize(640, 480);
-            recorder.setVideoEncodingBitRate(750_000);
+            recorder.setVideoEncodingBitRate(700_000);
             outputFile = new File(getExternalFilesDir(null), "video_" + System.currentTimeMillis() + ".mp4");
         } else {
             recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
@@ -90,9 +122,11 @@ public class RecordingService extends Service {
         recorder.setOutputFile(outputFile.getAbsolutePath());
 
         try {
+            startForeground(NOTIFICATION_ID, buildNotification("Transmissão ativa"));
             recorder.prepare();
             recorder.start();
-            streamClient.startStreaming(currentMode, outputFile.getName());
+            streamClient.startStreaming(currentMode, outputFile.getName(), source, remotelyTriggered);
+            statsHandler.post(statsRunnable);
         } catch (IOException | RuntimeException ex) {
             Log.e("RecordingService", "Erro ao iniciar gravação", ex);
             stopSelf();
@@ -124,11 +158,13 @@ public class RecordingService extends Service {
     }
 
     private void stopRecorderAndUpload() {
+        statsHandler.removeCallbacks(statsRunnable);
         stopRecorderIfRunning();
         if (outputFile != null && outputFile.exists()) {
             File compressed = CompressionUtils.compressMedia(getApplicationContext(), outputFile, currentMode);
             uploadManager.queueUpload(compressed, currentMode);
         }
+        streamClient.sendControlEvent("stopped");
         streamClient.stopStreaming();
         stopForeground(true);
         stopSelf();
@@ -141,7 +177,6 @@ public class RecordingService extends Service {
         try {
             recorder.stop();
         } catch (RuntimeException ignored) {
-            // Prevent crash for short recordings.
         }
         recorder.reset();
         recorder.release();
@@ -162,7 +197,7 @@ public class RecordingService extends Service {
             : new Notification.Builder(this);
 
         return builder
-            .setContentTitle("Gravação ativa")
+            .setContentTitle("ESPI transmissão ativa")
             .setContentText(text)
             .setSmallIcon(android.R.drawable.presence_video_online)
             .setContentIntent(pendingIntent)
@@ -187,6 +222,8 @@ public class RecordingService extends Service {
 
     @Override
     public void onDestroy() {
+        statsHandler.removeCallbacks(statsRunnable);
+        commandClient.stopPolling();
         stopRecorderIfRunning();
         streamClient.stopStreaming();
         super.onDestroy();
