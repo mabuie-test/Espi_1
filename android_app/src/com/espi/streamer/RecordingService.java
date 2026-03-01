@@ -48,25 +48,30 @@ public class RecordingService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
-        streamClient = new StreamClient(getApplicationContext());
-        uploadManager = new UploadManager(getApplicationContext());
-        commandClient = new CommandClient(getApplicationContext(), new CommandClient.CommandHandler() {
-            @Override
-            public void onStartRequested(String mode, String source) {
-                if (recorder == null) {
-                    startRecorder(mode, source, true);
+        try {
+            streamClient = new StreamClient(getApplicationContext());
+            uploadManager = new UploadManager(getApplicationContext());
+            commandClient = new CommandClient(getApplicationContext(), new CommandClient.CommandHandler() {
+                @Override
+                public void onStartRequested(String mode, String source) {
+                    if (recorder == null) {
+                        startRecorder(mode, source, true);
+                    }
                 }
-            }
 
-            @Override
-            public void onStopRequested() {
-                if (recorder != null) {
-                    stopRecorderAndUpload();
+                @Override
+                public void onStopRequested() {
+                    if (recorder != null) {
+                        stopRecorderAndUpload();
+                    }
                 }
-            }
-        });
-        createNotificationChannel();
-        commandClient.startPolling();
+            });
+            createNotificationChannel();
+            commandClient.startPolling();
+        } catch (Throwable ex) {
+            Log.e("RecordingService", "Falha ao inicializar serviço", ex);
+            stopSelf();
+        }
     }
 
     @Override
@@ -106,36 +111,45 @@ public class RecordingService extends Service {
     private void startRecorder(String mode, String source, boolean remotelyTriggered) {
         stopRecorderIfRunning();
         currentMode = mode;
-        recorder = createRecorder();
-
-        if (MODE_VIDEO_AUDIO.equals(mode)) {
-            recorder.setVideoSource(MediaRecorder.VideoSource.CAMERA);
-            recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-            recorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
-            recorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
-            recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
-            recorder.setVideoFrameRate(24);
-            recorder.setVideoSize(640, 480);
-            recorder.setVideoEncodingBitRate(700_000);
-            outputFile = new File(getExternalFilesDir(null), "video_" + System.currentTimeMillis() + ".mp4");
-        } else {
-            recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-            recorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
-            recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
-            recorder.setAudioEncodingBitRate(64_000);
-            outputFile = new File(getExternalFilesDir(null), "audio_" + System.currentTimeMillis() + ".m4a");
-        }
-
-        recorder.setOutputFile(outputFile.getAbsolutePath());
 
         try {
+            recorder = createRecorder();
+            File dir = getExternalFilesDir(null);
+            if (dir == null) {
+                throw new IllegalStateException("Diretório de saída indisponível");
+            }
+
+            if (MODE_VIDEO_AUDIO.equals(mode)) {
+                recorder.setVideoSource(MediaRecorder.VideoSource.CAMERA);
+                recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+                recorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
+                recorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
+                recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
+                recorder.setVideoFrameRate(24);
+                recorder.setVideoSize(640, 480);
+                recorder.setVideoEncodingBitRate(700_000);
+                outputFile = new File(dir, "video_" + System.currentTimeMillis() + ".mp4");
+            } else {
+                recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+                recorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
+                recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
+                recorder.setAudioEncodingBitRate(64_000);
+                outputFile = new File(dir, "audio_" + System.currentTimeMillis() + ".m4a");
+            }
+
+            recorder.setOutputFile(outputFile.getAbsolutePath());
             startForeground(NOTIFICATION_ID, buildNotification("Transmissão ativa"));
             recorder.prepare();
             recorder.start();
             streamClient.startStreaming(currentMode, outputFile.getName(), source, remotelyTriggered);
             statsHandler.post(statsRunnable);
+        } catch (SecurityException ex) {
+            Log.e("RecordingService", "Permissão insuficiente para iniciar gravação", ex);
+            stopRecorderIfRunning();
+            stopSelf();
         } catch (IOException | RuntimeException ex) {
             Log.e("RecordingService", "Erro ao iniciar gravação", ex);
+            stopRecorderIfRunning();
             stopSelf();
         }
     }
