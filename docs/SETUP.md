@@ -16,7 +16,7 @@
 
 1. Importe a pasta `android_app` no AIDE.
 2. Adicione JAR/AAR locais em `android_app/libs/`.
-3. Atualize URLs em `StreamClient`, `UploadManager`, `AuthManager`, `CommandClient`.
+3. Atualize URLs em `android_app/src/com/espi/streamer/ServerConfig.java` (fonte única).
 4. Abra app e faça:
    - ativar consentimento (persistido uma única vez)
    - ativar admin device

@@ -51,6 +51,10 @@ public class MainActivity extends Activity {
         sourceAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         sourceSpinner.setAdapter(sourceAdapter);
 
+        statusText.setText(privacyManager.hasConsent()
+            ? "Consentimento persistido ativo"
+            : "Pronto para iniciar");
+
         remoteControlCheck.setChecked(privacyManager.isRemoteControlEnabled());
         remoteControlCheck.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -142,6 +146,16 @@ public class MainActivity extends Activity {
         intent.putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION,
             "Necessário para melhorar estabilidade do comando remoto com transparência.");
         startActivityForResult(intent, REQ_ADMIN);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQ_ADMIN) {
+            statusText.setText(isAdminEnabled()
+                ? "Admin device ativado com sucesso"
+                : "Admin device não foi ativado");
+        }
     }
 
     private void requestRuntimePermissions() {

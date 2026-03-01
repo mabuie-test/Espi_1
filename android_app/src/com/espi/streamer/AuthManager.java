@@ -35,6 +35,10 @@ public class AuthManager {
         return token;
     }
 
+    public boolean login(String username, String password) {
+        return login(ServerConfig.BASE_URL, username, password);
+    }
+
     public boolean login(String baseUrl, String username, String password) {
         HttpURLConnection conn = null;
         try {
@@ -77,6 +81,10 @@ public class AuthManager {
                 conn.disconnect();
             }
         }
+    }
+
+    public boolean registerDevice(String deviceName) {
+        return registerDevice(ServerConfig.BASE_URL, deviceName);
     }
 
     public boolean registerDevice(String baseUrl, String deviceName) {

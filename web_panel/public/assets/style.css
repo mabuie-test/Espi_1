@@ -18,3 +18,7 @@ th, td { border-bottom: 1px solid #e2e8f0; padding: 8px; font-size: 14px; }
 @media (max-width: 900px) { .cards,.panel-grid{grid-template-columns:1fr;} }
 
 .logout { float:right; color:#cbd5e1; text-decoration:none; font-size:14px; }
+
+.health { margin-top:8px; display:inline-block; padding:4px 10px; border-radius:999px; font-size:12px; }
+.health-ok { background:#dcfce7; color:#166534; }
+.health-warn { background:#fef3c7; color:#92400e; }

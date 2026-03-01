@@ -34,7 +34,7 @@ public class UploadManager {
         while (attempts < 5 && offset < file.length()) {
             HttpURLConnection conn = null;
             try {
-                URL url = new URL("https://your-domain.example/api/upload.php");
+                URL url = new URL(ServerConfig.API_UPLOAD);
                 conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setDoOutput(true);

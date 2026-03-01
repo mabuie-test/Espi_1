@@ -22,6 +22,9 @@ Coloque os arquivos em `android_app/libs/`:
 - Comandos remotos só são aceitos se: **consentimento + toggle remoto ativo + admin device ativo**.
 - Privilégios admin são usados de forma transparente para robustez operacional, sem captura oculta.
 
+## Configuração rápida
+- Centralize URLs em `ServerConfig.java` para evitar inconsistências entre classes de rede.
+
 ## Endpoints esperados
 - `POST https://SEU_HOST/api/login.php`
 - `POST https://SEU_HOST/api/upload.php`

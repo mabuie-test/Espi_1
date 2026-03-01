@@ -40,6 +40,7 @@ try {
       <a class="logout" href="/logout.php">Sair</a>
       <h1>🎥 ESPI Control Center</h1>
       <p>Acompanhe transmissões ao vivo, escolha a fonte e envie comandos para dispositivos online com consentimento do utilizador.</p>
+      <p id="healthBadge" class="health">Estado do painel: a verificar...</p>
     </header>
 
     <?php if ($dbWarning): ?><p class="warn"><?= htmlspecialchars($dbWarning) ?></p><?php endif; ?>

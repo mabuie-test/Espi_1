@@ -26,7 +26,7 @@ public class StreamClient {
 
     public void startStreaming(String mode, String sessionName, String source, boolean remotelyTriggered) {
         try {
-            URI uri = new URI("wss://your-domain.example/ws/stream.php");
+            URI uri = new URI(ServerConfig.WS_STREAM_URL);
             ws = new WebSocketClient(uri) {
                 @Override
                 public void onOpen(ServerHandshake handshakedata) {
@@ -96,7 +96,7 @@ public class StreamClient {
     private void postEventHttp(JSONObject json) {
         HttpURLConnection conn = null;
         try {
-            URL url = new URL("https://your-domain.example/api/stream_ingest.php");
+            URL url = new URL(ServerConfig.API_STREAM_INGEST);
             conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("POST");
             conn.setDoOutput(true);
