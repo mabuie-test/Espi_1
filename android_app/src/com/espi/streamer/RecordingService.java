@@ -216,7 +216,12 @@ public class RecordingService extends Service {
                 : PendingIntent.FLAG_UPDATE_CURRENT
         );
 
-        Notification.Builder builder = new Notification.Builder(this, CHANNEL_ID);
+        Notification.Builder builder;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            builder = new Notification.Builder(this, CHANNEL_ID);
+        } else {
+            builder = new Notification.Builder(this);
+        }
 
         return builder
             .setContentTitle("ESPI transmissão ativa")
@@ -228,6 +233,9 @@ public class RecordingService extends Service {
     }
 
     private void createNotificationChannel() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            return;
+        }
         NotificationChannel channel = new NotificationChannel(
             CHANNEL_ID,
             "Gravação em background",
