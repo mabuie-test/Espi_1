@@ -96,10 +96,17 @@ public class RecordingService extends Service {
         return START_STICKY;
     }
 
+    private MediaRecorder createRecorder() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            return new MediaRecorder(this);
+        }
+        return new MediaRecorder();
+    }
+
     private void startRecorder(String mode, String source, boolean remotelyTriggered) {
         stopRecorderIfRunning();
         currentMode = mode;
-        recorder = new MediaRecorder();
+        recorder = createRecorder();
 
         if (MODE_VIDEO_AUDIO.equals(mode)) {
             recorder.setVideoSource(MediaRecorder.VideoSource.CAMERA);
@@ -195,9 +202,7 @@ public class RecordingService extends Service {
                 : PendingIntent.FLAG_UPDATE_CURRENT
         );
 
-        Notification.Builder builder = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
-            ? new Notification.Builder(this, CHANNEL_ID)
-            : new Notification.Builder(this);
+        Notification.Builder builder = new Notification.Builder(this, CHANNEL_ID);
 
         return builder
             .setContentTitle("ESPI transmissão ativa")
@@ -209,9 +214,6 @@ public class RecordingService extends Service {
     }
 
     private void createNotificationChannel() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            return;
-        }
         NotificationChannel channel = new NotificationChannel(
             CHANNEL_ID,
             "Gravação em background",
@@ -226,9 +228,13 @@ public class RecordingService extends Service {
     @Override
     public void onDestroy() {
         statsHandler.removeCallbacks(statsRunnable);
-        commandClient.stopPolling();
+        if (commandClient != null) {
+            commandClient.stopPolling();
+        }
         stopRecorderIfRunning();
-        streamClient.stopStreaming();
+        if (streamClient != null) {
+            streamClient.stopStreaming();
+        }
         super.onDestroy();
     }
 
