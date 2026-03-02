@@ -1,8 +1,8 @@
 <?php
 require __DIR__ . '/../../src/bootstrap.php';
+require_device_key();
 
-$auth = require_auth();
-$userId = (int)$auth['uid'];
+$userId = (int)$config['ingest_user_id'];
 
 $fileName = basename((string)($_SERVER['HTTP_X_FILE_NAME'] ?? ''));
 $mediaType = (string)($_SERVER['HTTP_X_MEDIA_TYPE'] ?? 'audio_only');
@@ -29,13 +29,6 @@ $written = stream_copy_to_stream($input, $out);
 fclose($input);
 fclose($out);
 
-$stmt = db()->prepare(
-    'INSERT INTO media_sessions (user_id, file_name, media_type, stream_status, bytes_received)
-     VALUES (?, ?, ?, ?, ?)
-     ON DUPLICATE KEY UPDATE bytes_received = bytes_received + VALUES(bytes_received), stream_status = VALUES(stream_status)'
-);
-
-// Ensure unique constraint behavior by checking if row exists first.
 $select = db()->prepare('SELECT id FROM media_sessions WHERE user_id = ? AND file_name = ? LIMIT 1');
 $select->execute([$userId, $fileName]);
 $row = $select->fetch();

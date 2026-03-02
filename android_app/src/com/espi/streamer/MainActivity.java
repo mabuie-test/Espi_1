@@ -28,8 +28,6 @@ public class MainActivity extends Activity {
     private ComponentName adminComponent;
     private AuthManager authManager;
     private EditText serverUrlInput;
-    private EditText usernameInput;
-    private EditText passwordInput;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -45,8 +43,6 @@ public class MainActivity extends Activity {
             statusText = findViewById(R.id.statusText);
             sourceSpinner = findViewById(R.id.sourceSpinner);
             serverUrlInput = findViewById(R.id.serverUrlInput);
-            usernameInput = findViewById(R.id.usernameInput);
-            passwordInput = findViewById(R.id.passwordInput);
             CheckBox remoteControlCheck = findViewById(R.id.remoteControlCheck);
             Button connectButton = findViewById(R.id.connectButton);
             Button enableAdminButton = findViewById(R.id.enableAdminButton);
@@ -60,7 +56,7 @@ public class MainActivity extends Activity {
             if (statusText == null || sourceSpinner == null || remoteControlCheck == null ||
                 enableAdminButton == null || consentButton == null || startVideoAudioButton == null ||
                 startAudioButton == null || pauseButton == null || resumeButton == null || stopButton == null ||
-                connectButton == null || serverUrlInput == null || usernameInput == null || passwordInput == null) {
+                connectButton == null || serverUrlInput == null) {
                 Toast.makeText(this, "Falha ao carregar interface. Reinstale o app.", Toast.LENGTH_LONG).show();
                 finish();
                 return;
@@ -81,21 +77,19 @@ public class MainActivity extends Activity {
                 @Override
                 public void onClick(View v) {
                     final String baseUrl = serverUrlInput.getText().toString().trim();
-                    final String user = usernameInput.getText().toString().trim();
-                    final String pass = passwordInput.getText().toString();
-                    if (baseUrl.isEmpty() || user.isEmpty() || pass.isEmpty()) {
-                        Toast.makeText(MainActivity.this, "Preencha URL, utilizador e senha.", Toast.LENGTH_LONG).show();
+                    if (baseUrl.isEmpty()) {
+                        Toast.makeText(MainActivity.this, "Preencha URL do servidor.", Toast.LENGTH_LONG).show();
                         return;
                     }
                     ServerConfig.BASE_URL = baseUrl;
                     new Thread(new Runnable() {
                         @Override
                         public void run() {
-                            final boolean ok = authManager.login(baseUrl, user, pass) && authManager.registerDevice(baseUrl, Build.MODEL);
+                            final boolean ok = authManager.registerDevice(baseUrl, Build.MODEL);
                             runOnUiThread(new Runnable() {
                                 @Override
                                 public void run() {
-                                    statusText.setText(ok ? "Conectado ao painel" : "Falha ao conectar/autenticar");
+                                    statusText.setText(ok ? "Dispositivo registado no painel" : "Falha ao registar dispositivo");
                                 }
                             });
                         }
@@ -223,10 +217,6 @@ public class MainActivity extends Activity {
     }
 
     private void startRecording(String mode) {
-        if (authManager.getToken().isEmpty()) {
-            Toast.makeText(this, "Conecte ao servidor primeiro.", Toast.LENGTH_LONG).show();
-            return;
-        }
         if (!privacyManager.hasConsent()) {
             Toast.makeText(this, "É obrigatório consentimento explícito.", Toast.LENGTH_LONG).show();
             return;

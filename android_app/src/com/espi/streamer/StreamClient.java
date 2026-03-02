@@ -49,7 +49,6 @@ public class StreamClient {
                     Log.e("StreamClient", "Erro websocket", ex);
                 }
             };
-            ws.addHeader("Authorization", "Bearer " + authManager.getToken());
             ws.connect();
         } catch (Throwable ex) {
             Log.w("StreamClient", "WebSocket indisponível, usando fallback HTTP", ex);
@@ -105,7 +104,7 @@ public class StreamClient {
             conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("POST");
             conn.setDoOutput(true);
-            conn.setRequestProperty("Authorization", "Bearer " + authManager.getToken());
+            conn.setRequestProperty("X-Device-Key", ServerConfig.DEVICE_INGEST_KEY);
             conn.setRequestProperty("Content-Type", "application/json");
             conn.setRequestProperty("X-Device-Token", authManager.getDeviceToken());
             OutputStream output = conn.getOutputStream();

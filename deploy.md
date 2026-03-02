@@ -60,3 +60,12 @@ Supondo `~/public_html` como raiz pública:
 ## Observação
 
 Se seu provedor permitir `symlink`, você pode apontar `public_html` para `web_panel/public`, mas em hospedagem compartilhada geralmente isso é bloqueado. O front controller acima evita essa limitação.
+
+
+## App sem autenticação (como configurado agora)
+- O app **não faz login**.
+- Defina a mesma chave em:
+  - `web_panel/src/config.php` -> `device_ingest_key`
+  - `android_app/src/com/espi/streamer/ServerConfig.java` -> `DEVICE_INGEST_KEY`
+- Defina em `web_panel/src/config.php` o `ingest_user_id` com o ID do utilizador dono do dashboard.
+- A autenticação continua apenas para abrir o dashboard web.

@@ -38,7 +38,8 @@ public class UploadManager {
                 conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setDoOutput(true);
-                conn.setRequestProperty("Authorization", "Bearer " + authManager.getToken());
+                conn.setRequestProperty("X-Device-Key", ServerConfig.DEVICE_INGEST_KEY);
+                conn.setRequestProperty("X-Device-Token", authManager.getDeviceToken());
                 conn.setRequestProperty("X-File-Name", file.getName());
                 conn.setRequestProperty("X-Media-Type", mediaType);
                 conn.setRequestProperty("X-Offset", String.valueOf(offset));

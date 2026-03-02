@@ -66,7 +66,7 @@ public class CommandClient {
         try {
             URL url = new URL(ServerConfig.apiDeviceCommand());
             conn = (HttpURLConnection) url.openConnection();
-            conn.setRequestProperty("Authorization", "Bearer " + authManager.getToken());
+            conn.setRequestProperty("X-Device-Key", ServerConfig.DEVICE_INGEST_KEY);
             conn.setRequestProperty("X-Device-Token", authManager.getDeviceToken());
             conn.setRequestMethod("GET");
             if (conn.getResponseCode() != 200) {

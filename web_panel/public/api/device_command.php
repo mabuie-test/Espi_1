@@ -1,25 +1,22 @@
 <?php
 require __DIR__ . '/../../src/bootstrap.php';
 
-$userId = current_user_id();
-if (!$userId) {
-    json_response(['error' => 'unauthorized'], 401);
-}
-
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    require_device_key();
     $deviceToken = trim((string)($_SERVER['HTTP_X_DEVICE_TOKEN'] ?? $_GET['device_token'] ?? ''));
     if ($deviceToken === '') {
         json_response(['ok' => true, 'command' => null]);
     }
 
-    $deviceStmt = db()->prepare('SELECT id FROM devices WHERE user_id = ? AND device_token = ? LIMIT 1');
-    $deviceStmt->execute([$userId, $deviceToken]);
+    $deviceStmt = db()->prepare('SELECT id, user_id FROM devices WHERE device_token = ? LIMIT 1');
+    $deviceStmt->execute([$deviceToken]);
     $device = $deviceStmt->fetch();
     if (!$device) {
         json_response(['ok' => true, 'command' => null]);
     }
 
     $deviceId = (int)$device['id'];
+    $userId = (int)$device['user_id'];
     db()->prepare('UPDATE devices SET online_status = 1, last_seen = NOW() WHERE id = ?')->execute([$deviceId]);
 
     $cmdStmt = db()->prepare('SELECT id, action, mode, source_name FROM device_commands WHERE user_id = ? AND device_id = ? AND status = ? ORDER BY id ASC LIMIT 1');
@@ -37,6 +34,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         'mode' => $cmd['mode'],
         'source' => $cmd['source_name'],
     ]]);
+}
+
+$userId = current_user_id();
+if (!$userId) {
+    json_response(['error' => 'unauthorized'], 401);
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {

@@ -133,3 +133,11 @@ function log_event(string $level, string $message, ?int $userId = null, ?array $
         $meta ? json_encode($meta, JSON_UNESCAPED_UNICODE) : null,
     ]);
 }
+
+function require_device_key(): void {
+    global $config;
+    $provided = trim((string)($_SERVER['HTTP_X_DEVICE_KEY'] ?? ''));
+    if ($provided === '' || !hash_equals((string)$config['device_ingest_key'], $provided)) {
+        json_response(['error' => 'invalid_device_key'], 401);
+    }
+}

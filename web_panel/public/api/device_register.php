@@ -1,8 +1,8 @@
 <?php
 require __DIR__ . '/../../src/bootstrap.php';
+require_device_key();
 
-$auth = require_auth();
-$userId = (int)$auth['uid'];
+$userId = (int)$config['ingest_user_id'];
 $body = json_decode(file_get_contents('php://input'), true) ?: [];
 $name = trim((string)($body['device_name'] ?? 'Android'));
 $token = trim((string)($body['device_token'] ?? ''));
