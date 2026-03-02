@@ -16,6 +16,10 @@ if ($ext === 'mp4') {
     $contentType = 'video/mp4';
 } elseif ($ext === 'm4a') {
     $contentType = 'audio/mp4';
+} elseif ($ext === 'ts' || $ext === 'part') {
+    $contentType = 'video/mp2t';
+} elseif ($ext === 'aac') {
+    $contentType = 'audio/aac';
 }
 header('Content-Type: ' . $contentType);
 header('Content-Length: ' . filesize($path));

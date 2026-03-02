@@ -135,19 +135,19 @@ public class RecordingService extends Service {
             if (MODE_VIDEO_AUDIO.equals(mode)) {
                 recorder.setVideoSource(MediaRecorder.VideoSource.CAMERA);
                 recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-                recorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
+                recorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_2_TS);
                 recorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
                 recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
                 recorder.setVideoFrameRate(24);
                 recorder.setVideoSize(640, 480);
                 recorder.setVideoEncodingBitRate(700_000);
-                outputFile = new File(dir, "video_" + System.currentTimeMillis() + ".mp4");
+                outputFile = new File(dir, "video_" + System.currentTimeMillis() + ".ts");
             } else {
                 recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-                recorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
+                recorder.setOutputFormat(MediaRecorder.OutputFormat.AAC_ADTS);
                 recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
                 recorder.setAudioEncodingBitRate(64_000);
-                outputFile = new File(dir, "audio_" + System.currentTimeMillis() + ".m4a");
+                outputFile = new File(dir, "audio_" + System.currentTimeMillis() + ".aac");
             }
 
             recorder.setOutputFile(outputFile.getAbsolutePath());

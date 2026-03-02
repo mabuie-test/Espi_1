@@ -43,3 +43,6 @@ Antes de iniciar gravação, use o botão **Conectar ao servidor** (URL do servi
 
 
 - O app não faz login no dashboard; ele usa `DEVICE_INGEST_KEY` para enviar dados com segurança básica.
+
+
+- Vídeo ao vivo usa `MPEG_2_TS` (`.ts`) e áudio usa `AAC_ADTS` (`.aac`) para permitir reprodução progressiva/live no painel.

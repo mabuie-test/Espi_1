@@ -78,15 +78,13 @@ try {
       </div>
 
       <div class="panel">
-        <h2>Monitor ao vivo (sessão selecionável)</h2>
-        <select id="sessionPicker">
-          <option value="">Selecione uma sessão</option>
-          <?php foreach ($recent as $row): ?>
-            <option value="<?= htmlspecialchars($row['file_name']) ?>"><?= htmlspecialchars(($row['device_name'] ?? 'Sem dispositivo') . ' - ' . $row['file_name']) ?></option>
-          <?php endforeach; ?>
-        </select>
+        <h2>Monitor ao vivo (dispositivo selecionado)</h2>
+        <p>Selecione um dispositivo no painel de controlo e clique em acompanhar.</p>
+        <button id="watchLiveBtn" type="button">Acompanhar ao vivo</button>
         <div id="livePlayer" class="live-player">
-          <p>Escolha uma sessão para acompanhar a transmissão/arquivo.</p>
+          <video id="liveVideo" controls autoplay muted width="100%" style="display:none"></video>
+          <audio id="liveAudio" controls autoplay style="display:none"></audio>
+          <p id="liveHint">Sem transmissão ativa.</p>
         </div>
       </div>
     </section>

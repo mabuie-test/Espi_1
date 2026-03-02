@@ -213,7 +213,12 @@ public class MainActivity extends Activity {
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
             checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            Toast.makeText(this, "Permissões não concedidas.", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "Permissão de microfone não concedida.", Toast.LENGTH_LONG).show();
+            return;
+        }
+        if (MODE_VIDEO_AUDIO.equals(mode) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+            checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            Toast.makeText(this, "Permissão de câmera não concedida.", Toast.LENGTH_LONG).show();
             return;
         }
 

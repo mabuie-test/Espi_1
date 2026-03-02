@@ -77,3 +77,6 @@ Se seu provedor permitir `symlink`, você pode apontar `public_html` para `web_p
 - Teste rápido:
   - `curl -I https://SEU_DOMINIO/assets/style.css`
   - `curl -I https://SEU_DOMINIO/assets/app.js`
+
+
+- Vídeo ao vivo usa `MPEG_2_TS` (`.ts`) e áudio usa `AAC_ADTS` (`.aac`) para permitir reprodução progressiva/live no painel.

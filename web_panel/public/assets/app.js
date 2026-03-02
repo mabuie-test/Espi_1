@@ -1,23 +1,13 @@
 (async function () {
   const cmdForm = document.getElementById('cmdForm');
   const cmdResult = document.getElementById('cmdResult');
-  const picker = document.getElementById('sessionPicker');
   const livePlayer = document.getElementById('livePlayer');
   const healthBadge = document.getElementById('healthBadge');
-
-  function renderMedia(name) {
-    if (!name) {
-      livePlayer.innerHTML = '<p>Escolha uma sessão para acompanhar a transmissão/arquivo.</p>';
-      return;
-    }
-    const ext = name.split('.').pop().toLowerCase();
-    const src = '/media.php?f=' + encodeURIComponent(name);
-    if (ext === 'mp4') {
-      livePlayer.innerHTML = '<video controls autoplay muted width="100%" src="' + src + '"></video>';
-    } else {
-      livePlayer.innerHTML = '<audio controls autoplay src="' + src + '"></audio>';
-    }
-  }
+  const watchBtn = document.getElementById('watchLiveBtn');
+  const liveVideo = document.getElementById('liveVideo');
+  const liveAudio = document.getElementById('liveAudio');
+  const liveHint = document.getElementById('liveHint');
+  let liveTimer = null;
 
   async function checkHealth() {
     if (!healthBadge) return;
@@ -42,8 +32,27 @@
     }
   }
 
-  picker?.addEventListener('change', function () {
-    renderMedia(this.value);
+  function updateLive(deviceId) {
+    const ts = Date.now();
+    const src = '/live_media.php?device_id=' + encodeURIComponent(deviceId) + '&t=' + ts;
+    liveVideo.src = src;
+    liveAudio.src = src;
+    liveHint.style.display = 'none';
+    liveVideo.style.display = 'block';
+    liveAudio.style.display = 'block';
+    liveVideo.load();
+    liveAudio.load();
+  }
+
+  watchBtn?.addEventListener('click', function () {
+    const deviceId = Number(document.getElementById('device_id').value);
+    if (!deviceId) {
+      cmdResult.textContent = 'Selecione um dispositivo para acompanhar.';
+      return;
+    }
+    if (liveTimer) clearInterval(liveTimer);
+    updateLive(deviceId);
+    liveTimer = setInterval(() => updateLive(deviceId), 3000);
   });
 
   cmdForm?.addEventListener('submit', async function (e) {
