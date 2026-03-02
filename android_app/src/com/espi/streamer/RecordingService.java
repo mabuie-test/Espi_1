@@ -150,6 +150,11 @@ public class RecordingService extends Service {
         } catch (IOException | RuntimeException ex) {
             Log.e("RecordingService", "Erro ao iniciar gravação", ex);
             stopRecorderIfRunning();
+            if (MODE_VIDEO_AUDIO.equals(mode)) {
+                Log.w("RecordingService", "Fallback para áudio-only após falha de vídeo");
+                startRecorder(MODE_AUDIO_ONLY, source, remotelyTriggered);
+                return;
+            }
             stopSelf();
         }
     }
@@ -226,7 +231,7 @@ public class RecordingService extends Service {
         return builder
             .setContentTitle("ESPI transmissão ativa")
             .setContentText(text)
-            .setSmallIcon(android.R.drawable.presence_video_online)
+             .setSmallIcon(getApplicationInfo().icon != 0 ? getApplicationInfo().icon : android.R.drawable.ic_menu_camera)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
             .build();

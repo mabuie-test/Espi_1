@@ -33,3 +33,7 @@ Coloque os arquivos em `android_app/libs/`:
 - `POST https://SEU_HOST/api/device_register.php`
 - `POST https://SEU_HOST/api/stream_ingest.php`
 - `wss://SEU_HOST/ws/stream.php`
+
+
+## Importante (app)
+Antes de iniciar gravação, use o botão **Conectar ao servidor** (URL + utilizador + senha) para obter JWT e registrar o dispositivo.

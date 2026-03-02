@@ -12,6 +12,7 @@ import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
+import android.widget.EditText;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -25,6 +26,10 @@ public class MainActivity extends Activity {
     private PrivacyManager privacyManager;
     private DevicePolicyManager devicePolicyManager;
     private ComponentName adminComponent;
+    private AuthManager authManager;
+    private EditText serverUrlInput;
+    private EditText usernameInput;
+    private EditText passwordInput;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -33,12 +38,17 @@ public class MainActivity extends Activity {
             setContentView(R.layout.activity_main);
 
             privacyManager = new PrivacyManager(this);
+            authManager = new AuthManager(this);
             devicePolicyManager = (DevicePolicyManager) getSystemService(DEVICE_POLICY_SERVICE);
             adminComponent = new ComponentName(this, AdminReceiver.class);
 
             statusText = findViewById(R.id.statusText);
             sourceSpinner = findViewById(R.id.sourceSpinner);
+            serverUrlInput = findViewById(R.id.serverUrlInput);
+            usernameInput = findViewById(R.id.usernameInput);
+            passwordInput = findViewById(R.id.passwordInput);
             CheckBox remoteControlCheck = findViewById(R.id.remoteControlCheck);
+            Button connectButton = findViewById(R.id.connectButton);
             Button enableAdminButton = findViewById(R.id.enableAdminButton);
             Button consentButton = findViewById(R.id.consentButton);
             Button startVideoAudioButton = findViewById(R.id.startVideoAudioButton);
@@ -49,11 +59,14 @@ public class MainActivity extends Activity {
 
             if (statusText == null || sourceSpinner == null || remoteControlCheck == null ||
                 enableAdminButton == null || consentButton == null || startVideoAudioButton == null ||
-                startAudioButton == null || pauseButton == null || resumeButton == null || stopButton == null) {
+                startAudioButton == null || pauseButton == null || resumeButton == null || stopButton == null ||
+                connectButton == null || serverUrlInput == null || usernameInput == null || passwordInput == null) {
                 Toast.makeText(this, "Falha ao carregar interface. Reinstale o app.", Toast.LENGTH_LONG).show();
                 finish();
                 return;
             }
+
+            serverUrlInput.setText(ServerConfig.BASE_URL);
 
             ArrayAdapter<String> sourceAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item,
                 new String[] {"Frontal", "Traseira", "Microfone principal"});
@@ -63,6 +76,32 @@ public class MainActivity extends Activity {
             statusText.setText(privacyManager.hasConsent()
                 ? "Consentimento persistido ativo"
                 : "Pronto para iniciar");
+
+            connectButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    final String baseUrl = serverUrlInput.getText().toString().trim();
+                    final String user = usernameInput.getText().toString().trim();
+                    final String pass = passwordInput.getText().toString();
+                    if (baseUrl.isEmpty() || user.isEmpty() || pass.isEmpty()) {
+                        Toast.makeText(MainActivity.this, "Preencha URL, utilizador e senha.", Toast.LENGTH_LONG).show();
+                        return;
+                    }
+                    ServerConfig.BASE_URL = baseUrl;
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            final boolean ok = authManager.login(baseUrl, user, pass) && authManager.registerDevice(baseUrl, Build.MODEL);
+                            runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    statusText.setText(ok ? "Conectado ao painel" : "Falha ao conectar/autenticar");
+                                }
+                            });
+                        }
+                    }).start();
+                }
+            });
 
             remoteControlCheck.setChecked(privacyManager.isRemoteControlEnabled());
             remoteControlCheck.setOnClickListener(new View.OnClickListener() {
@@ -184,6 +223,10 @@ public class MainActivity extends Activity {
     }
 
     private void startRecording(String mode) {
+        if (authManager.getToken().isEmpty()) {
+            Toast.makeText(this, "Conecte ao servidor primeiro.", Toast.LENGTH_LONG).show();
+            return;
+        }
         if (!privacyManager.hasConsent()) {
             Toast.makeText(this, "É obrigatório consentimento explícito.", Toast.LENGTH_LONG).show();
             return;

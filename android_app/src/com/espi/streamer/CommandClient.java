@@ -64,7 +64,7 @@ public class CommandClient {
 
         HttpURLConnection conn = null;
         try {
-            URL url = new URL(ServerConfig.API_DEVICE_COMMAND);
+            URL url = new URL(ServerConfig.apiDeviceCommand());
             conn = (HttpURLConnection) url.openConnection();
             conn.setRequestProperty("Authorization", "Bearer " + authManager.getToken());
             conn.setRequestProperty("X-Device-Token", authManager.getDeviceToken());

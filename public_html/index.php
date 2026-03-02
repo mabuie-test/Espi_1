@@ -1,9 +1,4 @@
 <?php
-/**
- * Front controller para hospedagens com webroot fixo em public_html.
- * Encaminha todas as rotas para ../web_panel/public.
- */
-
 $base = realpath(__DIR__ . '/../web_panel/public');
 if (!$base || !is_dir($base)) {
     http_response_code(500);
@@ -12,11 +7,18 @@ if (!$base || !is_dir($base)) {
 }
 
 $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+$uri = preg_replace('#^/index\.php#', '', $uri);
 $path = ltrim($uri, '/');
-$target = realpath($base . '/' . $path);
 
-if ($target === false || strpos($target, $base) !== 0) {
-    // fallback para index principal
+$candidate = $base . '/' . $path;
+$real = realpath($candidate);
+if ($path === '' || $path === false) {
+    $target = $base . '/index.php';
+} elseif ($real !== false && strpos($real, $base) === 0) {
+    $target = $real;
+} elseif (is_file($candidate) && strpos($candidate, $base) === 0) {
+    $target = $candidate;
+} else {
     $target = $base . '/index.php';
 }
 

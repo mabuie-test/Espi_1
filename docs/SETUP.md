@@ -36,3 +36,7 @@
 - Trocar `jwt_secret` por segredo forte no servidor.
 - Rotação de tokens e expiração curta.
 - Logging e monitoramento ativo de comandos.
+
+
+## Importante (app)
+Antes de iniciar gravação, use o botão **Conectar ao servidor** (URL + utilizador + senha) para obter JWT e registrar o dispositivo.

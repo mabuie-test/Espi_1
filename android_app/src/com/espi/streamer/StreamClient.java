@@ -26,7 +26,7 @@ public class StreamClient {
 
     public void startStreaming(String mode, String sessionName, String source, boolean remotelyTriggered) {
         try {
-            URI uri = new URI(ServerConfig.WS_STREAM_URL);
+            URI uri = new URI(ServerConfig.wsStreamUrl());
             ws = new WebSocketClient(uri) {
                 @Override
                 public void onOpen(ServerHandshake handshakedata) {
@@ -47,12 +47,16 @@ public class StreamClient {
                 @Override
                 public void onError(Exception ex) {
                     Log.e("StreamClient", "Erro websocket", ex);
-                    scheduleReconnect();
                 }
             };
             ws.addHeader("Authorization", "Bearer " + authManager.getToken());
             ws.connect();
+        } catch (Throwable ex) {
+            Log.w("StreamClient", "WebSocket indisponível, usando fallback HTTP", ex);
+            ws = null;
+        }
 
+        try {
             JSONObject start = new JSONObject();
             start.put("event", "start");
             start.put("mode", mode);
@@ -62,7 +66,7 @@ public class StreamClient {
             sendJson(start);
             postEventHttp(start);
         } catch (Exception ex) {
-            Log.e("StreamClient", "Falha ao iniciar streaming", ex);
+            Log.e("StreamClient", "Falha ao enviar evento start", ex);
         }
     }
 
@@ -70,6 +74,7 @@ public class StreamClient {
         try {
             JSONObject json = new JSONObject();
             json.put("event", event);
+            json.put("status", event);
             json.put("free_mem_mb", memoryManager.getFreeMemoryMb());
             json.put("cpu_hint", memoryManager.cpuHint());
             sendJson(json);
@@ -96,7 +101,7 @@ public class StreamClient {
     private void postEventHttp(JSONObject json) {
         HttpURLConnection conn = null;
         try {
-            URL url = new URL(ServerConfig.API_STREAM_INGEST);
+            URL url = new URL(ServerConfig.apiStreamIngest());
             conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("POST");
             conn.setDoOutput(true);

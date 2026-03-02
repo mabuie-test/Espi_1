@@ -34,7 +34,7 @@ public class UploadManager {
         while (attempts < 5 && offset < file.length()) {
             HttpURLConnection conn = null;
             try {
-                URL url = new URL(ServerConfig.API_UPLOAD);
+                URL url = new URL(ServerConfig.apiUpload());
                 conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setDoOutput(true);
