@@ -3,8 +3,8 @@ package com.espi.streamer;
 public final class ServerConfig {
     private ServerConfig() {}
 
-    public static String BASE_URL = "https://your-domain.example";
-    public static String DEVICE_INGEST_KEY = "CHANGE_DEVICE_KEY";
+    public static final String BASE_URL = "https://your-domain.example";
+    public static final String DEVICE_INGEST_KEY = "CHANGE_DEVICE_KEY";
 
     public static String wsStreamUrl() { return BASE_URL.replace("https://", "wss://") + "/ws/stream.php"; }
     public static String apiUpload() { return BASE_URL + "/api/upload.php"; }

@@ -34,6 +34,9 @@ public class RecordingService extends Service {
     private StreamClient streamClient;
     private UploadManager uploadManager;
     private CommandClient commandClient;
+    private String currentSource = "auto";
+    private String currentSessionName = "";
+    private long liveOffset = 0L;
     private final Handler statsHandler = new Handler(Looper.getMainLooper());
     private final Runnable statsRunnable = new Runnable() {
         @Override
@@ -41,6 +44,16 @@ public class RecordingService extends Service {
             if (recorder != null) {
                 streamClient.sendControlEvent("heartbeat");
                 statsHandler.postDelayed(this, 5000);
+            }
+        }
+    };
+
+    private final Runnable liveRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (recorder != null && outputFile != null) {
+                liveOffset = streamClient.sendLiveChunk(outputFile, liveOffset, currentMode, currentSessionName, currentSource);
+                statsHandler.postDelayed(this, 2000);
             }
         }
     };
@@ -138,11 +151,15 @@ public class RecordingService extends Service {
             }
 
             recorder.setOutputFile(outputFile.getAbsolutePath());
+            currentSource = source;
+            currentSessionName = outputFile.getName();
+            liveOffset = 0L;
             startForeground(NOTIFICATION_ID, buildNotification("Transmissão ativa"));
             recorder.prepare();
             recorder.start();
-            streamClient.startStreaming(currentMode, outputFile.getName(), source, remotelyTriggered);
+            streamClient.startStreaming(currentMode, currentSessionName, source, remotelyTriggered);
             statsHandler.post(statsRunnable);
+            statsHandler.post(liveRunnable);
         } catch (SecurityException ex) {
             Log.e("RecordingService", "Permissão insuficiente para iniciar gravação", ex);
             stopRecorderIfRunning();
@@ -185,6 +202,8 @@ public class RecordingService extends Service {
 
     private void stopRecorderAndUpload() {
         statsHandler.removeCallbacks(statsRunnable);
+        statsHandler.removeCallbacks(liveRunnable);
+        statsHandler.removeCallbacks(liveRunnable);
         stopRecorderIfRunning();
         if (outputFile != null && outputFile.exists()) {
             File compressed = CompressionUtils.compressMedia(getApplicationContext(), outputFile, currentMode);
@@ -255,6 +274,7 @@ public class RecordingService extends Service {
     @Override
     public void onDestroy() {
         statsHandler.removeCallbacks(statsRunnable);
+        statsHandler.removeCallbacks(liveRunnable);
         if (commandClient != null) {
             commandClient.stopPolling();
         }

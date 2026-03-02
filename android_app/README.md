@@ -36,7 +36,8 @@ Coloque os arquivos em `android_app/libs/`:
 
 
 ## Importante (app)
-Antes de iniciar gravação, use o botão **Conectar ao servidor** (URL do servidor) para obter JWT e registrar o dispositivo.
+Antes de iniciar gravação, use o botão **Registar dispositivo no painel**.
+A BASE_URL e DEVICE_INGEST_KEY ficam no código (`ServerConfig.java`).
 
 
 - O app não faz login no dashboard; ele usa `DEVICE_INGEST_KEY` para enviar dados com segurança básica.

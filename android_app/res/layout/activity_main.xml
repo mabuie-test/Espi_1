@@ -16,31 +16,11 @@
         android:text="Pronto para iniciar"
         android:textSize="18sp" />
 
-    <EditText
-        android:id="@+id/serverUrlInput"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="URL servidor (https://seu-dominio.com)"
-        android:inputType="textUri" />
-
-    <EditText
-        android:id="@+id/usernameInput"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="Utilizador" />
-
-    <EditText
-        android:id="@+id/passwordInput"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="Senha"
-        android:inputType="textPassword" />
-
     <Button
         android:id="@+id/connectButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Conectar ao servidor" />
+        android:text="Registar dispositivo no painel" />
 
     <TextView
         android:layout_width="match_parent"

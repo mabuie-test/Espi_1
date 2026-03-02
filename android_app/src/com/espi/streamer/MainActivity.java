@@ -12,7 +12,6 @@ import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
-import android.widget.EditText;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -27,7 +26,6 @@ public class MainActivity extends Activity {
     private DevicePolicyManager devicePolicyManager;
     private ComponentName adminComponent;
     private AuthManager authManager;
-    private EditText serverUrlInput;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,7 +40,6 @@ public class MainActivity extends Activity {
 
             statusText = findViewById(R.id.statusText);
             sourceSpinner = findViewById(R.id.sourceSpinner);
-            serverUrlInput = findViewById(R.id.serverUrlInput);
             CheckBox remoteControlCheck = findViewById(R.id.remoteControlCheck);
             Button connectButton = findViewById(R.id.connectButton);
             Button enableAdminButton = findViewById(R.id.enableAdminButton);
@@ -56,13 +53,11 @@ public class MainActivity extends Activity {
             if (statusText == null || sourceSpinner == null || remoteControlCheck == null ||
                 enableAdminButton == null || consentButton == null || startVideoAudioButton == null ||
                 startAudioButton == null || pauseButton == null || resumeButton == null || stopButton == null ||
-                connectButton == null || serverUrlInput == null) {
+                connectButton == null) {
                 Toast.makeText(this, "Falha ao carregar interface. Reinstale o app.", Toast.LENGTH_LONG).show();
                 finish();
                 return;
             }
-
-            serverUrlInput.setText(ServerConfig.BASE_URL);
 
             ArrayAdapter<String> sourceAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item,
                 new String[] {"Frontal", "Traseira", "Microfone principal"});
@@ -76,16 +71,10 @@ public class MainActivity extends Activity {
             connectButton.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    final String baseUrl = serverUrlInput.getText().toString().trim();
-                    if (baseUrl.isEmpty()) {
-                        Toast.makeText(MainActivity.this, "Preencha URL do servidor.", Toast.LENGTH_LONG).show();
-                        return;
-                    }
-                    ServerConfig.BASE_URL = baseUrl;
                     new Thread(new Runnable() {
                         @Override
                         public void run() {
-                            final boolean ok = authManager.registerDevice(baseUrl, Build.MODEL);
+                            final boolean ok = authManager.registerDevice(ServerConfig.BASE_URL, Build.MODEL);
                             runOnUiThread(new Runnable() {
                                 @Override
                                 public void run() {

@@ -7,7 +7,10 @@ import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
 import org.json.JSONObject;
 
+import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.OutputStream;
+import java.io.RandomAccessFile;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URL;
@@ -15,6 +18,8 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 public class StreamClient {
+    private static final int LIVE_CHUNK_SIZE = 128 * 1024;
+
     private WebSocketClient ws;
     private final AuthManager authManager;
     private final MemoryManager memoryManager;
@@ -58,6 +63,7 @@ public class StreamClient {
         try {
             JSONObject start = new JSONObject();
             start.put("event", "start");
+            start.put("status", "connected");
             start.put("mode", mode);
             start.put("session", sessionName);
             start.put("source", source);
@@ -67,6 +73,80 @@ public class StreamClient {
         } catch (Exception ex) {
             Log.e("StreamClient", "Falha ao enviar evento start", ex);
         }
+    }
+
+    public long sendLiveChunk(File file, long offset, String mode, String session, String source) {
+        if (file == null || !file.exists()) {
+            return offset;
+        }
+        long length = file.length();
+        if (length <= offset) {
+            return offset;
+        }
+
+        HttpURLConnection conn = null;
+        RandomAccessFile raf = null;
+        try {
+            raf = new RandomAccessFile(file, "r");
+            raf.seek(offset);
+            int toRead = (int) Math.min(LIVE_CHUNK_SIZE, length - offset);
+            byte[] chunk = new byte[toRead];
+            int read = raf.read(chunk);
+            if (read <= 0) {
+                return offset;
+            }
+
+            String boundary = "----espiBoundary" + System.currentTimeMillis();
+            URL url = new URL(ServerConfig.apiStreamIngest());
+            conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setDoOutput(true);
+            conn.setRequestProperty("X-Device-Key", ServerConfig.DEVICE_INGEST_KEY);
+            conn.setRequestProperty("X-Device-Token", authManager.getDeviceToken());
+            conn.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
+
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            writeField(bos, boundary, "event", "frame");
+            writeField(bos, boundary, "status", "connected");
+            writeField(bos, boundary, "session", session);
+            writeField(bos, boundary, "mode", mode);
+            writeField(bos, boundary, "source", source);
+            bos.write(("--" + boundary + "\r\n").getBytes("UTF-8"));
+            bos.write("Content-Disposition: form-data; name=\"chunk\"; filename=\"live.part\"\r\n".getBytes("UTF-8"));
+            bos.write("Content-Type: application/octet-stream\r\n\r\n".getBytes("UTF-8"));
+            bos.write(chunk, 0, read);
+            bos.write("\r\n".getBytes("UTF-8"));
+            bos.write(("--" + boundary + "--\r\n").getBytes("UTF-8"));
+
+            OutputStream out = conn.getOutputStream();
+            out.write(bos.toByteArray());
+            out.flush();
+
+            int code = conn.getResponseCode();
+            if (code == 200 || code == 201) {
+                return offset + read;
+            }
+            return offset;
+        } catch (Exception ex) {
+            Log.w("StreamClient", "Falha ao enviar live chunk", ex);
+            return offset;
+        } finally {
+            try {
+                if (raf != null) {
+                    raf.close();
+                }
+            } catch (Exception ignored) {}
+            if (conn != null) {
+                conn.disconnect();
+            }
+        }
+    }
+
+    private void writeField(ByteArrayOutputStream bos, String boundary, String name, String value) throws Exception {
+        bos.write(("--" + boundary + "\r\n").getBytes("UTF-8"));
+        bos.write(("Content-Disposition: form-data; name=\"" + name + "\"\r\n\r\n").getBytes("UTF-8"));
+        bos.write(value.getBytes("UTF-8"));
+        bos.write("\r\n".getBytes("UTF-8"));
     }
 
     public void sendControlEvent(String event) {
