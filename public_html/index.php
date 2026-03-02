@@ -9,36 +9,52 @@ if (!$base || !is_dir($base)) {
 $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 $uri = preg_replace('#^/index\.php#', '', $uri);
 $path = ltrim($uri, '/');
+$path = str_replace('..', '', $path);
 
-$candidate = $base . '/' . $path;
-$real = realpath($candidate);
-if ($path === '' || $path === false) {
+if ($path === '') {
     $target = $base . '/index.php';
-} elseif ($real !== false && strpos($real, $base) === 0) {
-    $target = $real;
-} elseif (is_file($candidate) && strpos($candidate, $base) === 0) {
-    $target = $candidate;
 } else {
-    $target = $base . '/index.php';
+    $target = $base . '/' . $path;
 }
 
 if (is_dir($target)) {
     $target = rtrim($target, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'index.php';
 }
 
-if (!file_exists($target)) {
-    http_response_code(404);
-    echo 'Recurso não encontrado.';
+if (!is_file($target)) {
+    $target = $base . '/index.php';
+}
+
+$targetReal = realpath($target);
+if ($targetReal === false || strpos($targetReal, $base) !== 0) {
+    http_response_code(403);
+    echo 'Acesso inválido.';
     exit;
 }
 
-$ext = strtolower(pathinfo($target, PATHINFO_EXTENSION));
+$ext = strtolower(pathinfo($targetReal, PATHINFO_EXTENSION));
 if ($ext === 'php') {
-    require $target;
+    require $targetReal;
     exit;
 }
 
-$mime = function_exists('mime_content_type') ? mime_content_type($target) : 'application/octet-stream';
+$map = [
+    'css' => 'text/css; charset=UTF-8',
+    'js' => 'application/javascript; charset=UTF-8',
+    'json' => 'application/json; charset=UTF-8',
+    'png' => 'image/png',
+    'jpg' => 'image/jpeg',
+    'jpeg' => 'image/jpeg',
+    'gif' => 'image/gif',
+    'svg' => 'image/svg+xml',
+    'mp4' => 'video/mp4',
+    'm4a' => 'audio/mp4',
+];
+$mime = $map[$ext] ?? (function_exists('mime_content_type') ? mime_content_type($targetReal) : false);
+if (!$mime) {
+    $mime = 'application/octet-stream';
+}
 header('Content-Type: ' . $mime);
-header('Content-Length: ' . filesize($target));
-readfile($target);
+
+header('Content-Length: ' . filesize($targetReal));
+readfile($targetReal);

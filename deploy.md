@@ -69,3 +69,11 @@ Se seu provedor permitir `symlink`, você pode apontar `public_html` para `web_p
   - `android_app/src/com/espi/streamer/ServerConfig.java` -> `DEVICE_INGEST_KEY`
 - Defina em `web_panel/src/config.php` o `ingest_user_id` com o ID do utilizador dono do dashboard.
 - A autenticação continua apenas para abrir o dashboard web.
+
+
+## Se CSS/JS abrir em HTML cru
+- Este projeto usa `public_html/index.php` como front controller.
+- Garanta que `Content-Type` de `/assets/style.css` seja `text/css` e `/assets/app.js` seja `application/javascript`.
+- Teste rápido:
+  - `curl -I https://SEU_DOMINIO/assets/style.css`
+  - `curl -I https://SEU_DOMINIO/assets/app.js`
