@@ -1,0 +1,292 @@
+package com.espi.streamer;
+
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.app.Service;
+import android.content.Intent;
+import android.media.MediaRecorder;
+import android.os.Build;
+import android.os.Handler;
+import android.os.IBinder;
+import android.os.Looper;
+import android.util.Log;
+
+import java.io.File;
+import java.io.IOException;
+
+public class RecordingService extends Service {
+    public static final String ACTION_START = "com.espi.streamer.START";
+    public static final String ACTION_PAUSE = "com.espi.streamer.PAUSE";
+    public static final String ACTION_RESUME = "com.espi.streamer.RESUME";
+    public static final String ACTION_STOP = "com.espi.streamer.STOP";
+
+    public static final String MODE_VIDEO_AUDIO = "video_audio";
+    public static final String MODE_AUDIO_ONLY = "audio_only";
+
+    private static final String CHANNEL_ID = "recording_channel";
+    private static final int NOTIFICATION_ID = 1337;
+
+    private MediaRecorder recorder;
+    private File outputFile;
+    private String currentMode;
+    private StreamClient streamClient;
+    private UploadManager uploadManager;
+    private CommandClient commandClient;
+    private String currentSource = "auto";
+    private String currentSessionName = "";
+    private long liveOffset = 0L;
+    private final Handler statsHandler = new Handler(Looper.getMainLooper());
+    private final Runnable statsRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (recorder != null) {
+                streamClient.sendControlEvent("heartbeat");
+                statsHandler.postDelayed(this, 5000);
+            }
+        }
+    };
+
+    private final Runnable liveRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (recorder != null && outputFile != null) {
+                liveOffset = streamClient.sendLiveChunk(outputFile, liveOffset, currentMode, currentSessionName, currentSource);
+                statsHandler.postDelayed(this, 2000);
+            }
+        }
+    };
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        try {
+            streamClient = new StreamClient(getApplicationContext());
+            uploadManager = new UploadManager(getApplicationContext());
+            commandClient = new CommandClient(getApplicationContext(), new CommandClient.CommandHandler() {
+                @Override
+                public void onStartRequested(String mode, String source) {
+                    if (recorder == null) {
+                        startRecorder(mode, source, true);
+                    }
+                }
+
+                @Override
+                public void onStopRequested() {
+                    if (recorder != null) {
+                        stopRecorderAndUpload();
+                    }
+                }
+            });
+            createNotificationChannel();
+            commandClient.startPolling();
+        } catch (Throwable ex) {
+            Log.e("RecordingService", "Falha ao inicializar serviço", ex);
+            stopSelf();
+        }
+    }
+
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        if (intent == null || intent.getAction() == null) {
+            return START_NOT_STICKY;
+        }
+
+        String action = intent.getAction();
+        if (ACTION_START.equals(action)) {
+            String mode = intent.getStringExtra("mode");
+            if (mode == null) {
+                mode = MODE_AUDIO_ONLY;
+            }
+            String source = intent.getStringExtra("source");
+            if (source == null) {
+                source = "auto";
+            }
+            startRecorder(mode, source, false);
+        } else if (ACTION_PAUSE.equals(action)) {
+            pauseRecorder();
+        } else if (ACTION_RESUME.equals(action)) {
+            resumeRecorder();
+        } else if (ACTION_STOP.equals(action)) {
+            stopRecorderAndUpload();
+        }
+        return START_STICKY;
+    }
+
+    private MediaRecorder createRecorder() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            return new MediaRecorder(this);
+        }
+        return new MediaRecorder();
+    }
+
+    private void startRecorder(String mode, String source, boolean remotelyTriggered) {
+        stopRecorderIfRunning();
+        currentMode = mode;
+
+        try {
+            recorder = createRecorder();
+            File dir = getExternalFilesDir(null);
+            if (dir == null) {
+                throw new IllegalStateException("Diretório de saída indisponível");
+            }
+
+            if (MODE_VIDEO_AUDIO.equals(mode)) {
+                recorder.setVideoSource(MediaRecorder.VideoSource.CAMERA);
+                recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+                recorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_2_TS);
+                recorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
+                recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
+                recorder.setVideoFrameRate(24);
+                recorder.setVideoSize(640, 480);
+                recorder.setVideoEncodingBitRate(700_000);
+                outputFile = new File(dir, "video_" + System.currentTimeMillis() + ".ts");
+            } else {
+                recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+                recorder.setOutputFormat(MediaRecorder.OutputFormat.AAC_ADTS);
+                recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
+                recorder.setAudioEncodingBitRate(64_000);
+                outputFile = new File(dir, "audio_" + System.currentTimeMillis() + ".aac");
+            }
+
+            recorder.setOutputFile(outputFile.getAbsolutePath());
+            currentSource = source;
+            currentSessionName = outputFile.getName();
+            liveOffset = 0L;
+            startForeground(NOTIFICATION_ID, buildNotification("Transmissão ativa"));
+            recorder.prepare();
+            recorder.start();
+            streamClient.startStreaming(currentMode, currentSessionName, source, remotelyTriggered);
+            statsHandler.post(statsRunnable);
+            statsHandler.post(liveRunnable);
+        } catch (SecurityException ex) {
+            Log.e("RecordingService", "Permissão insuficiente para iniciar gravação", ex);
+            stopRecorderIfRunning();
+            stopSelf();
+        } catch (IOException | RuntimeException ex) {
+            Log.e("RecordingService", "Erro ao iniciar gravação", ex);
+            stopRecorderIfRunning();
+            if (MODE_VIDEO_AUDIO.equals(mode)) {
+                Log.w("RecordingService", "Fallback para áudio-only após falha de vídeo");
+                startRecorder(MODE_AUDIO_ONLY, source, remotelyTriggered);
+                return;
+            }
+            stopSelf();
+        }
+    }
+
+    private void pauseRecorder() {
+        if (recorder == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
+            return;
+        }
+        try {
+            recorder.pause();
+            streamClient.sendControlEvent("paused");
+        } catch (RuntimeException ex) {
+            Log.e("RecordingService", "Falha ao pausar", ex);
+        }
+    }
+
+    private void resumeRecorder() {
+        if (recorder == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
+            return;
+        }
+        try {
+            recorder.resume();
+            streamClient.sendControlEvent("resumed");
+        } catch (RuntimeException ex) {
+            Log.e("RecordingService", "Falha ao retomar", ex);
+        }
+    }
+
+    private void stopRecorderAndUpload() {
+        statsHandler.removeCallbacks(statsRunnable);
+        statsHandler.removeCallbacks(liveRunnable);
+        statsHandler.removeCallbacks(liveRunnable);
+        stopRecorderIfRunning();
+        if (outputFile != null && outputFile.exists()) {
+            File compressed = CompressionUtils.compressMedia(getApplicationContext(), outputFile, currentMode);
+            uploadManager.queueUpload(compressed, currentMode);
+        }
+        streamClient.sendControlEvent("stopped");
+        streamClient.stopStreaming();
+        stopForeground(true);
+        stopSelf();
+    }
+
+    private void stopRecorderIfRunning() {
+        if (recorder == null) {
+            return;
+        }
+        try {
+            recorder.stop();
+        } catch (RuntimeException ignored) {
+        }
+        recorder.reset();
+        recorder.release();
+        recorder = null;
+    }
+
+    private Notification buildNotification(String text) {
+        Intent openIntent = getPackageManager().getLaunchIntentForPackage(getPackageName());
+        if (openIntent == null) {
+            openIntent = new Intent();
+        }
+        PendingIntent pendingIntent = PendingIntent.getActivity(
+            this, 0, openIntent,
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+                ? PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
+                : PendingIntent.FLAG_UPDATE_CURRENT
+        );
+
+        Notification.Builder builder;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            builder = new Notification.Builder(this, CHANNEL_ID);
+        } else {
+            builder = new Notification.Builder(this);
+        }
+
+        return builder
+            .setContentTitle("ESPI transmissão ativa")
+            .setContentText(text)
+             .setSmallIcon(getApplicationInfo().icon != 0 ? getApplicationInfo().icon : android.R.drawable.ic_menu_camera)
+            .setContentIntent(pendingIntent)
+            .setOngoing(true)
+            .build();
+    }
+
+    private void createNotificationChannel() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            return;
+        }
+        NotificationChannel channel = new NotificationChannel(
+            CHANNEL_ID,
+            "Gravação em background",
+            NotificationManager.IMPORTANCE_LOW
+        );
+        NotificationManager manager = getSystemService(NotificationManager.class);
+        if (manager != null) {
+            manager.createNotificationChannel(channel);
+        }
+    }
+
+    @Override
+    public void onDestroy() {
+        statsHandler.removeCallbacks(statsRunnable);
+        statsHandler.removeCallbacks(liveRunnable);
+        if (commandClient != null) {
+            commandClient.stopPolling();
+        }
+        stopRecorderIfRunning();
+        if (streamClient != null) {
+            streamClient.stopStreaming();
+        }
+        super.onDestroy();
+    }
+
+    @Override
+    public IBinder onBind(Intent intent) {
+        return null;
+    }
+}
